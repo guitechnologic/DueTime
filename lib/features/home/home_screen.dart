@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../storage/local_storage.dart';
 import '../../models/document_model.dart';
-import '../add_document/add_document_modal.dart';
+import '../../storage/local_storage.dart';
+import '../document/add_document_bottom_sheet.dart';
+import '../document/document_detail.dart';
+import '../passport/passport_form.dart';
+import '../cnh/cnh_form.dart';
+import '../nif/nif_form.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,62 +15,159 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  List<DocumentModel> documents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDocuments();
+  }
+
+  Future<void> _loadDocuments() async {
+    final docs = await LocalStorage.getAll();
+    setState(() => documents = docs);
+  }
+
+  /// Abrir formulário para novo documento ou editar existente
+  void _openDocumentForm({DocumentModel? doc}) async {
+    Widget screen;
+
+    if (doc != null) {
+      // Editando documento existente
+      if (doc.type == DocumentType.passport) {
+        screen = PassportFormScreen(document: doc);
+      } else if (doc.type == DocumentType.cnh) {
+        screen = CnhFormScreen();
+      } else if (doc.type == DocumentType.nif) {
+        screen = NifFormScreen();
+      } else {
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => screen),
+      );
+    } else {
+      // Adicionando novo documento
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => const AddDocumentBottomSheet(),
+      );
+    }
+
+    _loadDocuments();
+  }
+
+  Future<void> _deleteDocument(DocumentModel doc) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir documento'),
+        content: Text('Deseja realmente excluir "${doc.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await LocalStorage.delete(doc.id);
+      _loadDocuments();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final docs = LocalStorage.getAll();
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meus Documentos'),
-        centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await showModalBottomSheet(
-            context: context,
-            builder: (_) => const AddDocumentModal(),
-          );
-          setState(() {});
-        },
-        child: const Icon(Icons.add),
-      ),
-      body: docs.isEmpty
-          ? const Center(
-              child: Text(
-                'Nenhum documento cadastrado',
-                style: TextStyle(fontSize: 16),
-              ),
-            )
+      appBar: AppBar(title: const Text('Meus Documentos')),
+      body: documents.isEmpty
+          ? _EmptyState(onAdd: () => _openDocumentForm())
           : Padding(
-              padding: const EdgeInsets.all(16),
-              child: ListView(
-                children: DocumentType.values.map((type) {
-                  final count =
-                      LocalStorage.getByType(type).length;
-                  if (count == 0) return const SizedBox();
-                  return _documentCard(
-                    title: type.name.toUpperCase(),
-                    count: count,
+              padding: const EdgeInsets.only(bottom: 80), // espaço para FAB
+              child: ListView.builder(
+                itemCount: documents.length,
+                itemBuilder: (_, i) {
+                  final doc = documents[i];
+
+                  Color? color;
+                  if (doc.daysToExpire <= 7) {
+                    color = Colors.red.withOpacity(0.1);
+                  } else if (doc.daysToExpire <= 30) {
+                    color = Colors.amber.withOpacity(0.15);
+                  }
+
+                  return Container(
+                    color: color,
+                    child: ListTile(
+                      title: Text(doc.title),
+                      subtitle: Text(
+                          '${doc.shortName} • vence em ${doc.daysToExpire} dias'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DocumentDetailScreen(doc: doc),
+                        ),
+                      ),
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _openDocumentForm(doc: doc);
+                          } else if (value == 'delete') {
+                            _deleteDocument(doc);
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'edit', child: Text('Editar')),
+                          PopupMenuItem(value: 'delete', child: Text('Excluir')),
+                        ],
+                      ),
+                    ),
                   );
-                }).toList(),
+                },
               ),
+            ),
+      floatingActionButton: documents.isEmpty
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _openDocumentForm(),
+              child: const Icon(Icons.add),
             ),
     );
   }
+}
 
-  Widget _documentCard({required String title, required int count}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.blue.shade50,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+/// Tela inicial vazia (nenhum documento)
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onAdd;
+  const _EmptyState({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18)),
-          Text('$count', style: const TextStyle(fontSize: 22)),
+          FloatingActionButton.large(
+            onPressed: onAdd,
+            child: const Icon(Icons.add, size: 36),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Clique aqui para adicionar seu documento',
+            style: TextStyle(fontSize: 16),
+          ),
         ],
       ),
     );

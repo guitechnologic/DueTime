@@ -6,25 +6,21 @@ class DateInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    var text = newValue.text.replaceAll(RegExp(r'[^0-9/]'), '');
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
 
-    // Remove barras extras
-    text = text.replaceAll('//', '/');
+    if (digits.length > 8) return oldValue;
 
-    if (text.length > 10) {
-      text = text.substring(0, 10);
-    }
-
-    // Auto insere /
-    if (text.length == 2 && !text.contains('/')) {
-      text = '$text/';
-    } else if (text.length == 5 && text.lastIndexOf('/') == 2) {
-      text = '$text/';
+    String result = '';
+    for (int i = 0; i < digits.length; i++) {
+      result += digits[i];
+      if (i == 1 || i == 3) {
+        if (i != digits.length - 1) result += '/';
+      }
     }
 
     return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+      text: result,
+      selection: TextSelection.collapsed(offset: result.length),
     );
   }
 }

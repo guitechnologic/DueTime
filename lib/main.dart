@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+
 import 'theme/app_theme.dart';
 import 'features/home/home_screen.dart';
-
+import 'core/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
   runApp(const Journey2EuropeApp());
 }
 

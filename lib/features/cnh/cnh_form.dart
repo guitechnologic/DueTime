@@ -1,7 +1,10 @@
+// lib/features/cnh/cnh_form.dart
+
 import 'dart:io';
 import 'dart:math';
-import 'package:flutter/material.dart';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -35,8 +38,7 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
 
   File? file;
 
-  bool get isBrasil =>
-      paisCtrl.text.trim().toLowerCase() == 'brasil';
+  bool get isBrasil => paisCtrl.text.trim().toLowerCase() == 'brasil';
 
   DateTime? _parseDate(String v) {
     try {
@@ -44,6 +46,15 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  String _capitalizeWords(String text) {
+    return text
+        .trim()
+        .split(' ')
+        .map((w) =>
+            w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
   }
 
   Future<void> _pickMedia() async {
@@ -64,7 +75,7 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     nascimento = _parseDate(nascimentoCtrl.text);
     emissao = _parseDate(emissaoCtrl.text);
     vencimento = _parseDate(vencimentoCtrl.text);
@@ -72,10 +83,9 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
     if (!_formKey.currentState!.validate() ||
         nascimento == null ||
         emissao == null ||
-        vencimento == null ||
-        file == null) {
+        vencimento == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha todos os campos e adicione o arquivo')),
+        const SnackBar(content: Text('Preencha todos os campos obrigatórios')),
       );
       return;
     }
@@ -83,33 +93,27 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
     final extra = {
       'registro': registroCtrl.text,
       'categoria': categoriaCtrl.text,
-      'pais': paisCtrl.text,
-      'localNascimento': localNascimentoCtrl.text,
+      'pais': _capitalizeWords(paisCtrl.text),
+      'localNascimento': _capitalizeWords(localNascimentoCtrl.text),
       'dataNascimento': nascimento!.toIso8601String(),
     };
 
-    if (isBrasil) {
-      extra['cpf'] = cpfCtrl.text;
-    }
+    if (isBrasil) extra['cpf'] = cpfCtrl.text;
 
-    LocalStorage.add(
+    await LocalStorage.save(
       DocumentModel(
         id: Random().nextInt(999999).toString(),
         type: DocumentType.cnh,
         title: 'CNH',
-        holderName: nomeCtrl.text,
+        holderName: _capitalizeWords(nomeCtrl.text),
         issueDate: emissao!,
         expiryDate: vencimento!,
-        filePath: file!.path,
         extra: extra,
+        imagePath: file?.path,
       ),
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Documento salvo')),
-    );
-
-    Navigator.pop(context);
+    Navigator.pop(context, true); // retorna true para atualizar HomeScreen
   }
 
   @override
@@ -135,9 +139,7 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
               ),
               if (isBrasil) _field(cpfCtrl, 'CPF'),
               _field(localNascimentoCtrl, 'Local de nascimento'),
-
               const SizedBox(height: 16),
-
               ElevatedButton.icon(
                 onPressed: _pickMedia,
                 icon: const Icon(Icons.attach_file),
@@ -145,9 +147,7 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
                   isBrasil ? 'Importar CNH (PDF)' : 'Tirar foto da CNH',
                 ),
               ),
-
               const SizedBox(height: 30),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -162,19 +162,14 @@ class _CnhFormScreenState extends State<CnhFormScreen> {
     );
   }
 
-  Widget _field(
-    TextEditingController c,
-    String label, {
-    void Function(String)? onChanged,
-  }) {
+  Widget _field(TextEditingController c, String label, {void Function(String)? onChanged}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: c,
         onChanged: onChanged,
         decoration: InputDecoration(labelText: label),
-        validator: (v) =>
-            v == null || v.isEmpty ? 'Campo obrigatório' : null,
+        validator: (v) => v == null || v.isEmpty ? 'Campo obrigatório' : null,
       ),
     );
   }

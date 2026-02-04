@@ -1,106 +1,68 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-
 import '../../models/document_model.dart';
 import '../../storage/local_storage.dart';
 
 class DocumentDetailScreen extends StatefulWidget {
-  final DocumentModel document;
-
-  const DocumentDetailScreen({super.key, required this.document});
+  final DocumentModel doc;
+  const DocumentDetailScreen({super.key, required this.doc});
 
   @override
-  State<DocumentDetailScreen> createState() => _DocumentDetailScreenState();
+  State<DocumentDetailScreen> createState() =>
+      _DocumentDetailScreenState();
 }
 
-class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
-  Future<void> _replaceFile() async {
-    File? newFile;
+class _DocumentDetailScreenState
+    extends State<DocumentDetailScreen> {
+  late DocumentModel doc;
 
-    if (widget.document.type == DocumentType.cnh) {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'png'],
-      );
-      if (result != null) {
-        newFile = File(result.files.single.path!);
-      }
-    } else {
-      final img = await ImagePicker()
-          .pickImage(source: ImageSource.camera, imageQuality: 80);
-      if (img != null) {
-        newFile = File(img.path);
-      }
-    }
-
-    if (newFile != null) {
-      LocalStorage.updateFile(widget.document.id, newFile.path);
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Documento atualizado')),
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    doc = widget.doc;
   }
 
   @override
   Widget build(BuildContext context) {
-    final doc = widget.document;
-
     return Scaffold(
       appBar: AppBar(title: Text(doc.title)),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Titular: ${doc.holderName}', style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 8),
-            Text('Vence em: ${doc.daysToExpire} dias'),
+            Text('Titular: ${doc.holderName}'),
+            Text('Vencimento: ${doc.expiryDate.day}/${doc.expiryDate.month}/${doc.expiryDate.year}'),
+            Text('Dias para vencer: ${doc.daysToExpire}'),
 
             const SizedBox(height: 20),
 
-            ...doc.extra.entries.map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text('${e.key}: ${e.value}'),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Container(
-              height: 220,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: Theme.of(context).colorScheme.surfaceVariant,
-              ),
-              child: doc.filePath.endsWith('.pdf')
-                  ? const Center(child: Text('PDF anexado'))
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.file(
-                        File(doc.filePath),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-            ),
+            if (doc.imagePath != null)
+              Image.file(File(doc.imagePath!)),
 
             const SizedBox(height: 12),
 
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _replaceFile,
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Substituir documento'),
+            ElevatedButton(
+              onPressed: _replaceImage,
+              child: Text(
+                doc.imagePath == null
+                    ? 'Adicionar imagem'
+                    : 'Substituir imagem',
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _replaceImage() async {
+    // mock de caminho (integração câmera/file vem depois)
+    const fakePath = '/tmp/document.jpg';
+
+    final updated = doc.copyWith(imagePath: fakePath);
+    await LocalStorage.save(updated);
+
+    setState(() => doc = updated);
   }
 }

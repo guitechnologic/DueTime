@@ -1,10 +1,9 @@
-import 'dart:io';
+// lib/features/nif/nif_form.dart
+
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/date_input_formatter.dart';
 import '../../models/document_model.dart';
 import '../../storage/local_storage.dart';
 
@@ -19,81 +18,83 @@ class _NifFormScreenState extends State<NifFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final nomeCtrl = TextEditingController();
-  final sexoCtrl = TextEditingController();
-  final alturaCtrl = TextEditingController();
   final nascimentoCtrl = TextEditingController();
   final validadeCtrl = TextEditingController();
-  final cartaoCtrl = TextEditingController();
+  final ccCtrl = TextEditingController();
   final nifCtrl = TextEditingController();
-  final ssCtrl = TextEditingController();
-  final utenteCtrl = TextEditingController();
+  final nissCtrl = TextEditingController();
+  final snsCtrl = TextEditingController();
 
   DateTime? nascimento;
   DateTime? validade;
 
-  File? photo;
+  String? sexo;
 
-  DateTime? _parseDate(String v) {
-    try {
-      return DateFormat('dd/MM/yyyy').parseStrict(v);
-    } catch (_) {
-      return null;
+  /// Capitaliza a primeira letra de cada palavra
+  String _capitalizeWords(String text) {
+    return text
+        .trim()
+        .split(' ')
+        .map((w) =>
+            w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+  }
+
+  /// Abre date picker
+  Future<void> _pickDate(TextEditingController ctrl, bool isExpiry) async {
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100),
+      initialDate: DateTime.now(),
+    );
+
+    if (date != null) {
+      ctrl.text = DateFormat('dd/MM/yyyy').format(date);
+      if (isExpiry) {
+        validade = date;
+      } else {
+        nascimento = date;
+      }
     }
   }
 
-  Future<void> _pickPhoto() async {
-    final img = await ImagePicker()
-        .pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (img != null) {
-      setState(() => photo = File(img.path));
-    }
-  }
-
-  void _save() {
-    nascimento = _parseDate(nascimentoCtrl.text);
-    validade = _parseDate(validadeCtrl.text);
-
+  /// Salva o documento
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate() ||
         nascimento == null ||
-        validade == null ||
-        photo == null) {
+        validade == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha todos os campos e adicione a foto')),
+        const SnackBar(content: Text('Preencha todos os campos obrigatórios')),
       );
       return;
     }
 
-    LocalStorage.add(
+    await LocalStorage.save(
       DocumentModel(
         id: Random().nextInt(999999).toString(),
         type: DocumentType.nif,
-        title: 'Cartão de Cidadão',
-        holderName: nomeCtrl.text,
+        title: 'Cartão do Cidadão',
+        holderName: _capitalizeWords(nomeCtrl.text),
         issueDate: nascimento!,
         expiryDate: validade!,
-        filePath: photo!.path,
         extra: {
-          'Sexo': sexoCtrl.text,
-          'Altura': alturaCtrl.text,
-          'Nº Cartão': cartaoCtrl.text,
-          'NIF': nifCtrl.text,
-          'Segurança Social': ssCtrl.text,
-          'Utente Saúde': utenteCtrl.text,
+          'sexo': sexo,
+          'numeroCartao': ccCtrl.text,
+          'nif': nifCtrl.text,
+          'sns': snsCtrl.text,
+          'niss': nissCtrl.text.isEmpty ? null : nissCtrl.text,
         },
       ),
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Documento salvo')),
-    );
-
-    Navigator.pop(context);
+    Navigator.pop(context, true); // Retorna true para atualizar HomeScreen
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cartão de Cidadão')),
+      appBar: AppBar(title: const Text('Cartão do Cidadão')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -101,37 +102,19 @@ class _NifFormScreenState extends State<NifFormScreen> {
           child: Column(
             children: [
               _field(nomeCtrl, 'Nome'),
-              _field(sexoCtrl, 'Sexo'),
-              _field(alturaCtrl, 'Altura'),
-              _dateField(nascimentoCtrl, 'Data de nascimento'),
-              _dateField(validadeCtrl, 'Data de validade'),
-              _field(cartaoCtrl, 'Nº Cartão Cidadão'),
-              _field(nifCtrl, 'NIF (9 dígitos)', digits: true),
-              _field(ssCtrl, 'Nº Segurança Social'),
-              _field(utenteCtrl, 'Nº Utente de Saúde'),
-
-              const SizedBox(height: 16),
-
-              GestureDetector(
-                onTap: _pickPhoto,
-                child: Container(
-                  height: 160,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Theme.of(context).colorScheme.surfaceVariant,
-                  ),
-                  child: photo == null
-                      ? const Center(child: Text('Adicionar foto do cartão'))
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.file(photo!, fit: BoxFit.cover),
-                        ),
-                ),
+              _sexoDropdown(),
+              _dateField(nascimentoCtrl, 'Data de nascimento', false),
+              _dateField(validadeCtrl, 'Data de validade', true),
+              _numberField(ccCtrl, 'Nº Cartão do Cidadão', 12),
+              _numberField(nifCtrl, 'NIF (9 dígitos)', 9),
+              _numberField(snsCtrl, 'Nº SNS (9 dígitos)', 9),
+              _numberField(
+                nissCtrl,
+                'Nº Segurança Social (opcional)',
+                11,
+                required: false,
               ),
-
               const SizedBox(height: 30),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -146,28 +129,65 @@ class _NifFormScreenState extends State<NifFormScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label, {bool digits = false}) {
+  Widget _field(TextEditingController c, String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: c,
-        keyboardType: digits ? TextInputType.number : null,
         decoration: InputDecoration(labelText: label),
-        validator: (v) =>
-            v == null || v.isEmpty ? 'Campo obrigatório' : null,
+        validator: (v) => v == null || v.isEmpty ? 'Campo obrigatório' : null,
       ),
     );
   }
 
-  Widget _dateField(TextEditingController c, String label) {
+  Widget _numberField(TextEditingController c, String label, int max,
+      {bool required = true}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: c,
         keyboardType: TextInputType.number,
-        inputFormatters: [DateInputFormatter()],
+        maxLength: max,
+        decoration: InputDecoration(labelText: label, counterText: ''),
+        validator: (v) {
+          if (!required && (v == null || v.isEmpty)) return null;
+          if (v == null || v.length != max) {
+            return 'Deve conter $max dígitos';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _dateField(TextEditingController c, String label, bool isExpiry) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: c,
+        readOnly: true,
         decoration: InputDecoration(labelText: label),
-        validator: (v) => _parseDate(v ?? '') == null ? 'Data inválida' : null,
+        onTap: () => _pickDate(c, isExpiry),
+        validator: (v) => v == null || v.isEmpty ? 'Selecione a data' : null,
+      ),
+    );
+  }
+
+  Widget _sexoDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        value: sexo,
+        decoration: const InputDecoration(labelText: 'Sexo'),
+        items: const [
+          DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+          DropdownMenuItem(value: 'Feminino', child: Text('Feminino')),
+          DropdownMenuItem(
+            value: 'Prefiro não declarar',
+            child: Text('Prefiro não declarar'),
+          ),
+        ],
+        onChanged: (v) => setState(() => sexo = v),
       ),
     );
   }
