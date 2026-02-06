@@ -1,8 +1,12 @@
 // lib/features/home/home_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../models/document_model.dart';
 import '../../storage/local_storage.dart';
+import '../../core/theme_notifier.dart';
+
 import '../document/document_detail.dart';
 import '../passport/passport_form.dart';
 import '../cnh/cnh_form.dart';
@@ -41,19 +45,27 @@ class _HomeScreenState extends State<HomeScreen> {
         case DocumentType.passport:
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => PassportFormScreen(document: doc)),
+            MaterialPageRoute(
+              builder: (_) => PassportFormScreen(document: doc),
+            ),
           );
           break;
+
         case DocumentType.cnh:
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => CnhFormScreen()),
+            MaterialPageRoute(
+              builder: (_) => CnhFormScreen(document: doc),
+            ),
           );
           break;
+
         case DocumentType.nif:
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => NifFormScreen()),
+            MaterialPageRoute(
+              builder: (_) => NifFormScreen(document: doc),
+            ),
           );
           break;
       }
@@ -62,19 +74,21 @@ class _HomeScreenState extends State<HomeScreen> {
         case DocumentType.passport:
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => PassportFormScreen()),
+            MaterialPageRoute(builder: (_) => const PassportFormScreen()),
           );
           break;
+
         case DocumentType.cnh:
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => CnhFormScreen()),
+            MaterialPageRoute(builder: (_) => const CnhFormScreen()),
           );
           break;
+
         case DocumentType.nif:
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => NifFormScreen()),
+            MaterialPageRoute(builder: (_) => const NifFormScreen()),
           );
           break;
       }
@@ -89,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    _loadDocuments();
+    _loadDocuments(); // sempre recarrega ao voltar
   }
 
   Future<void> _deleteDocument(DocumentModel doc) async {
@@ -119,8 +133,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.watch<ThemeNotifier>();
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Meus Documentos')),
+      appBar: AppBar(
+        title: const Text('Meus Documentos'),
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : documents.isEmpty
@@ -180,6 +198,14 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          FloatingActionButton(
+            heroTag: 'theme',
+            onPressed: () => context.read<ThemeNotifier>().toggle(),
+            child: Icon(
+              theme.isDark ? Icons.light_mode : Icons.dark_mode,
+            ),
+          ),
+          const SizedBox(width: 20),
           FloatingActionButton(
             heroTag: 'refresh',
             onPressed: _loadDocuments,
