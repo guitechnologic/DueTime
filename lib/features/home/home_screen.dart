@@ -45,27 +45,19 @@ class _HomeScreenState extends State<HomeScreen> {
         case DocumentType.passport:
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => PassportFormScreen(document: doc),
-            ),
+            MaterialPageRoute(builder: (_) => PassportFormScreen(document: doc)),
           );
           break;
-
         case DocumentType.cnh:
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => CnhFormScreen(document: doc),
-            ),
+            MaterialPageRoute(builder: (_) => CnhFormScreen(document: doc)),
           );
           break;
-
         case DocumentType.nif:
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => NifFormScreen(document: doc),
-            ),
+            MaterialPageRoute(builder: (_) => NifFormScreen(document: doc)),
           );
           break;
       }
@@ -77,14 +69,12 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (_) => const PassportFormScreen()),
           );
           break;
-
         case DocumentType.cnh:
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CnhFormScreen()),
           );
           break;
-
         case DocumentType.nif:
           await Navigator.push(
             context,
@@ -103,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    _loadDocuments(); // sempre recarrega ao voltar
+    _loadDocuments();
   }
 
   Future<void> _deleteDocument(DocumentModel doc) async {
@@ -134,78 +124,97 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeNotifier>();
+    final isDark = theme.isDark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Meus Documentos'),
+        actions: [
+          IconButton(
+            tooltip: 'Alternar tema',
+            icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+            onPressed: () => context.read<ThemeNotifier>().toggle(),
+          ),
+        ],
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : documents.isEmpty
-              ? const SizedBox.shrink()
-              : Padding(
-                  padding: const EdgeInsets.only(bottom: 120),
-                  child: ListView.builder(
-                    itemCount: documents.length,
-                    itemBuilder: (_, i) {
-                      final doc = documents[i];
+      body: Stack(
+        children: [
+          /// 🔹 BACKGROUND COM IMAGEM DO ÍCONE
+          Center(
+            child: Opacity(
+              opacity: isDark ? 0.06 : 0.08,
+              child: Image.asset(
+                'assets/images/app_background.png',
+                width: 260,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
 
-                      Color? color;
-                      if (doc.daysToExpire <= 7) {
-                        color = Colors.red.withOpacity(0.1);
-                      } else if (doc.daysToExpire <= 30) {
-                        color = Colors.amber.withOpacity(0.15);
-                      }
+          /// 🔹 CONTEÚDO POR CIMA
+          loading
+              ? const Center(child: CircularProgressIndicator())
+              : documents.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(bottom: 120),
+                      child: ListView.builder(
+                        itemCount: documents.length,
+                        itemBuilder: (_, i) {
+                          final doc = documents[i];
 
-                      return Container(
-                        color: color,
-                        child: ListTile(
-                          title: Text(doc.title),
-                          subtitle: Text(
-                            '${doc.shortName} • vence em ${doc.daysToExpire} dias',
-                          ),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DocumentDetailScreen(doc: doc),
+                          Color? color;
+                          if (doc.daysToExpire <= 7) {
+                            color = Colors.red.withOpacity(0.1);
+                          } else if (doc.daysToExpire <= 30) {
+                            color = Colors.amber.withOpacity(0.15);
+                          }
+
+                          return Container(
+                            color: color,
+                            child: ListTile(
+                              title: Text(doc.title),
+                              subtitle: Text(
+                                '${doc.shortName} • vence em ${doc.daysToExpire} dias',
+                              ),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      DocumentDetailScreen(doc: doc),
+                                ),
+                              ),
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    _openDocumentForm(doc: doc);
+                                  } else if (value == 'delete') {
+                                    _deleteDocument(doc);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Editar'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Excluir'),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                _openDocumentForm(doc: doc);
-                              } else if (value == 'delete') {
-                                _deleteDocument(doc);
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Editar'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Excluir'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                          );
+                        },
+                      ),
+                    ),
+        ],
+      ),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FloatingActionButton(
-            heroTag: 'theme',
-            onPressed: () => context.read<ThemeNotifier>().toggle(),
-            child: Icon(
-              theme.isDark ? Icons.light_mode : Icons.dark_mode,
-            ),
-          ),
-          const SizedBox(width: 20),
           FloatingActionButton(
             heroTag: 'refresh',
             onPressed: _loadDocuments,
