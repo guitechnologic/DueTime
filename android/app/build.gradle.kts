@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // Flutter Gradle Plugin
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -21,12 +22,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
 
-        // 🔴 ESSENCIAL PARA flutter_local_notifications
+        // 🔴 OBRIGATÓRIO para flutter_local_notifications
         isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     buildTypes {
@@ -37,7 +38,7 @@ android {
 }
 
 dependencies {
-    // 🔴 OBRIGATÓRIO PARA DESUGARING
+    // 🔴 OBRIGATÓRIO para desugaring (Java time, etc.)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 

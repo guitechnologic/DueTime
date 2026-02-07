@@ -1,12 +1,8 @@
 // lib/features/home/home_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
 import '../../models/document_model.dart';
 import '../../storage/local_storage.dart';
-import '../../core/theme_notifier.dart';
-
 import '../document/document_detail.dart';
 import '../passport/passport_form.dart';
 import '../cnh/cnh_form.dart';
@@ -123,35 +119,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeNotifier>();
-    final isDark = theme.isDark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final backgroundImage = isDark
+        ? 'assets/images/app_background.png'
+        : 'assets/images/app_background_color.png';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meus Documentos'),
-        actions: [
-          IconButton(
-            tooltip: 'Alternar tema',
-            icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-            onPressed: () => context.read<ThemeNotifier>().toggle(),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Meus Documentos')),
       body: Stack(
         children: [
-          /// 🔹 BACKGROUND COM IMAGEM DO ÍCONE
-          Center(
+          // 🔹 Background image
+          Positioned.fill(
             child: Opacity(
-              opacity: isDark ? 0.06 : 0.08,
+              opacity: 0.18,
               child: Image.asset(
-                'assets/images/app_background.png',
-                width: 260,
+                backgroundImage,
                 fit: BoxFit.contain,
+                alignment: Alignment.center,
               ),
             ),
           ),
 
-          /// 🔹 CONTEÚDO POR CIMA
+          // 🔹 Conteúdo
           loading
               ? const Center(child: CircularProgressIndicator())
               : documents.isEmpty
@@ -210,7 +200,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
         ],
       ),
-
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
