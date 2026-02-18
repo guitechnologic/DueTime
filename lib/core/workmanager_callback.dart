@@ -12,34 +12,37 @@ void callbackDispatcher() {
     final docs = await LocalStorage.getAll();
     final now = tz.TZDateTime.now(tz.local);
 
-    for (final doc in docs) {
-      final days = doc.expiryDate.difference(now).inDays;
+    // Só notifica entre 09h e 21h
+    if (now.hour < 9 || now.hour > 21) {
+      return true;
+    }
 
-      // 🟡 30 a 8 dias
-      if (days <= 30 && days > 7) {
-        await NotificationService.show(
-          id: '${doc.id}-yellow'.hashCode,
-          title: 'Documento próximo do vencimento',
-          body: 'Seu documento ${doc.title} vence em $days dias',
-        );
-      }
+    for (final doc in docs) {
+      final difference = doc.expiryDate.difference(now);
+      final days = difference.inDays;
+
+      if (days < 0) continue; // não notifica vencido
+
+      final todayKey = "${doc.id}-${now.year}-${now.month}-${now.day}";
+      final notificationId = todayKey.hashCode;
 
       // 🔴 7 dias ou menos
-      else if (days <= 7 && days >= 0) {
+      if (days <= 7) {
         await NotificationService.show(
-          id: '${doc.id}-red'.hashCode,
-          title: '⚠️ Atenção!',
-          body: 'Seu documento ${doc.title} vence em $days dias',
+          id: notificationId,
+          title: '⚠ Atenção: Renovação urgente',
+          body:
+              'Faltam $days dias para o ${doc.title} vencer. Agende a renovação para evitar problemas.',
         );
       }
 
-      // ❌ Vencido
-      else if (days < 0) {
+      // 🟡 30 dias ou menos
+      else if (days <= 30) {
         await NotificationService.show(
-          id: '${doc.id}-expired'.hashCode,
-          title: '❌ Documento vencido',
+          id: notificationId,
+          title: 'Documento próximo do vencimento',
           body:
-              'Seu documento ${doc.title} está vencido há ${days.abs()} dias',
+              'Em $days dias o ${doc.title} vai vencer. Organize-se para renovar.',
         );
       }
     }

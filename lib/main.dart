@@ -35,11 +35,10 @@ Future<void> main() async {
     'document-expiry-check',
     'documentExpiryCheck',
     frequency: const Duration(hours: 24),
-    constraints: Constraints(
+    constraints: Constraints( // 🔧 REMOVIDO const (correção do erro)
       networkType: NetworkType.notRequired,
     ),
   );
-
 
   runApp(const Journey2EuropeApp());
 }
@@ -68,7 +67,6 @@ class Journey2EuropeApp extends StatelessWidget {
 }
 
 // ============================================================
- //  flutter emulators --launch Medium_Phone_API_36.1  
-//   build/app/outputs/flutter-apk/app-release.apk
-
- // ============================================================
+//  flutter emulators --launch Medium_Phone_API_36.1
+//  build/app/outputs/flutter-apk/app-release.apk
+// ============================================================
