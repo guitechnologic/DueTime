@@ -1,5 +1,3 @@
-// lib/features/passport/passport_form.dart
-
 import 'dart:math';
 import 'dart:io';
 
@@ -38,11 +36,10 @@ class _PassportFormScreenState extends State<PassportFormScreen> {
 
   File? photo;
 
-  /// Controla se o usuário editou manualmente o vencimento
   bool vencimentoEditadoManualmente = false;
 
   // =========================
-  // INIT (EDIÇÃO)
+  // INIT
   // =========================
 
   @override
@@ -79,7 +76,7 @@ class _PassportFormScreenState extends State<PassportFormScreen> {
   }
 
   // =========================
-  // FORMATADORES / PARSE
+  // FORMATADORES
   // =========================
 
   String _fmt(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
@@ -117,13 +114,22 @@ class _PassportFormScreenState extends State<PassportFormScreen> {
   }
 
   // =========================
-  // TEXTO
+  // CAPITALIZAÇÃO CORRIGIDA
   // =========================
 
-  String _capitalizeWords(String text) {
+  String _capitalizeWordsLive(String text) {
+    final words = text.split(' ');
+
+    return words.map((w) {
+      if (w.isEmpty) return '';
+      return w[0].toUpperCase() + w.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
+  String _capitalizeWordsFinal(String text) {
     return text
         .trim()
-        .split(' ')
+        .split(RegExp(r'\s+'))
         .map((w) =>
             w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
         .join(' ');
@@ -169,14 +175,14 @@ class _PassportFormScreenState extends State<PassportFormScreen> {
       id: widget.document?.id ?? Random().nextInt(999999).toString(),
       type: DocumentType.passport,
       title: 'Passaporte $firstName',
-      holderName: _capitalizeWords(nomeCtrl.text),
+      holderName: _capitalizeWordsFinal(nomeCtrl.text),
       issueDate: emissao!,
       expiryDate: vencimento!,
       imagePath: photo?.path,
       extra: {
         'numero': numeroCtrl.text.toUpperCase(),
-        'paisOrigem': _capitalizeWords(paisOrigemCtrl.text),
-        'paisEmissao': _capitalizeWords(paisEmissaoCtrl.text),
+        'paisOrigem': _capitalizeWordsFinal(paisOrigemCtrl.text),
+        'paisEmissao': _capitalizeWordsFinal(paisEmissaoCtrl.text),
         'dataNascimento': nascimento!.toIso8601String(),
       },
     );
@@ -252,7 +258,7 @@ class _PassportFormScreenState extends State<PassportFormScreen> {
                 'País de origem',
                 capitalize: true,
                 onChanged: (v) {
-                  paisEmissaoCtrl.text = _capitalizeWords(v);
+                  paisEmissaoCtrl.text = _capitalizeWordsLive(v);
                 },
               ),
 
@@ -302,12 +308,11 @@ class _PassportFormScreenState extends State<PassportFormScreen> {
         inputFormatters: inputFormatters,
         onChanged: (v) {
           if (capitalize) {
-            final sel = c.selection;
-            final newText = _capitalizeWords(v);
+            final newText = _capitalizeWordsLive(v);
             c.value = TextEditingValue(
               text: newText,
               selection: TextSelection.collapsed(
-                offset: sel.baseOffset.clamp(0, newText.length),
+                offset: newText.length,
               ),
             );
           }
