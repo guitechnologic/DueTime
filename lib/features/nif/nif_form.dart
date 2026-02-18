@@ -1,5 +1,3 @@
-// lib/features/nif/nif_form.dart
-
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,8 +43,10 @@ class _NifFormScreenState extends State<NifFormScreen> {
       nascimento = doc.issueDate;
       validade = doc.expiryDate;
 
-      nascimentoCtrl.text = DateFormat('dd/MM/yyyy').format(doc.issueDate);
-      validadeCtrl.text = DateFormat('dd/MM/yyyy').format(doc.expiryDate);
+      nascimentoCtrl.text =
+          DateFormat('dd/MM/yyyy').format(doc.issueDate);
+      validadeCtrl.text =
+          DateFormat('dd/MM/yyyy').format(doc.expiryDate);
 
       sexo = doc.extra['sexo'];
       ccCtrl.text = doc.extra['numeroCartao'] ?? '';
@@ -56,22 +56,16 @@ class _NifFormScreenState extends State<NifFormScreen> {
     }
   }
 
+  // =========================
+  // UTILITÁRIOS
+  // =========================
+
   String _capitalizeWords(String text) {
-    final buffer = StringBuffer();
-    bool capitalizeNext = true;
-
-    for (int i = 0; i < text.length; i++) {
-      final char = text[i];
-
-      if (char == ' ') {
-        buffer.write(char);
-        capitalizeNext = true;
-      } else {
-        buffer.write(capitalizeNext ? char.toUpperCase() : char.toLowerCase());
-        capitalizeNext = false;
-      }
-    }
-    return buffer.toString();
+    final words = text.split(' ');
+    return words
+        .map((w) =>
+            w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
   }
 
   DateTime? _parseDate(String value) {
@@ -82,6 +76,50 @@ class _NifFormScreenState extends State<NifFormScreen> {
     }
   }
 
+  // =========================
+  // VALIDAÇÕES
+  // =========================
+
+  String? _validateNIF(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (!RegExp(r'^\d{9}$').hasMatch(value)) {
+      return 'NIF deve conter exatamente 9 dígitos\nEx: 123456789';
+    }
+    return null;
+  }
+
+  String? _validateSNS(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (!RegExp(r'^\d{9}$').hasMatch(value)) {
+      return 'SNS deve conter exatamente 9 dígitos\nEx: 123456789';
+    }
+    return null;
+  }
+
+  String? _validateNISS(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (!RegExp(r'^\d{11}$').hasMatch(value)) {
+      return 'NISS deve conter exatamente 11 dígitos\nEx: 12345678901';
+    }
+    return null;
+  }
+
+  String? _validateCC(String? value) {
+    if (value == null || value.isEmpty) return null;
+
+    final regex = RegExp(r'^\d{8}[A-Z]{2}\d{2}$');
+
+    if (!regex.hasMatch(value)) {
+      return 'Formato correto: 8 números + 2 letras + 2 números\nEx: 12345678AB12';
+    }
+
+    return null;
+  }
+
+  // =========================
+  // SALVAR
+  // =========================
+
   Future<void> _save() async {
     nascimento = _parseDate(nascimentoCtrl.text);
     validade = _parseDate(validadeCtrl.text);
@@ -90,7 +128,9 @@ class _NifFormScreenState extends State<NifFormScreen> {
         nascimento == null ||
         validade == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha todos os campos obrigatórios')),
+        const SnackBar(
+          content: Text('Verifique os campos obrigatórios'),
+        ),
       );
       return;
     }
@@ -106,9 +146,9 @@ class _NifFormScreenState extends State<NifFormScreen> {
       expiryDate: validade!,
       extra: {
         'sexo': sexo,
-        'numeroCartao': ccCtrl.text,
-        'nif': nifCtrl.text,
-        'sns': snsCtrl.text,
+        'numeroCartao': ccCtrl.text.isEmpty ? null : ccCtrl.text,
+        'nif': nifCtrl.text.isEmpty ? null : nifCtrl.text,
+        'sns': snsCtrl.text.isEmpty ? null : snsCtrl.text,
         'niss': nissCtrl.text.isEmpty ? null : nissCtrl.text,
       },
     );
@@ -117,11 +157,16 @@ class _NifFormScreenState extends State<NifFormScreen> {
     Navigator.pop(context, true);
   }
 
+  // =========================
+  // UI
+  // =========================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Editar Cartão do Cidadão' : 'Cartão do Cidadão'),
+        title: Text(
+            isEditing ? 'Editar Cartão do Cidadão' : 'Cartão do Cidadão'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -133,10 +178,13 @@ class _NifFormScreenState extends State<NifFormScreen> {
               _sexoDropdown(),
               _dateField(nascimentoCtrl, 'Data de nascimento'),
               _dateField(validadeCtrl, 'Data de validade'),
-              _numberField(ccCtrl, 'Nº Cartão do Cidadão', 12),
-              _numberField(nifCtrl, 'NIF (N° de Identificação Fiscal)', 9),
-              _numberField(snsCtrl, 'Nº SNS (Seguro Nacional de Saúde)', 9),
-              _numberField(nissCtrl, 'Nº Segurança Social', 11, required: false),
+              _ccField(),
+              _optionalNumberField(
+                  nifCtrl, 'NIF (9 dígitos)', 9, _validateNIF),
+              _optionalNumberField(
+                  snsCtrl, 'Nº SNS (9 dígitos)', 9, _validateSNS),
+              _optionalNumberField(
+                  nissCtrl, 'NISS (11 dígitos)', 11, _validateNISS),
               const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,
@@ -152,7 +200,12 @@ class _NifFormScreenState extends State<NifFormScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label, {bool capitalize = false}) {
+  // =========================
+  // COMPONENTES
+  // =========================
+
+  Widget _field(TextEditingController c, String label,
+      {bool capitalize = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -162,18 +215,24 @@ class _NifFormScreenState extends State<NifFormScreen> {
                 final newText = _capitalizeWords(v);
                 c.value = TextEditingValue(
                   text: newText,
-                  selection: TextSelection.collapsed(offset: newText.length),
+                  selection:
+                      TextSelection.collapsed(offset: newText.length),
                 );
               }
             : null,
         decoration: InputDecoration(labelText: label),
-        validator: (v) => v == null || v.isEmpty ? 'Campo obrigatório' : null,
+        validator: (v) =>
+            v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
       ),
     );
   }
 
-  Widget _numberField(TextEditingController c, String label, int max,
-      {bool required = true}) {
+  Widget _optionalNumberField(
+    TextEditingController c,
+    String label,
+    int maxLength,
+    String? Function(String?) validator,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -181,14 +240,33 @@ class _NifFormScreenState extends State<NifFormScreen> {
         keyboardType: TextInputType.number,
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(max),
+          LengthLimitingTextInputFormatter(maxLength),
         ],
-        decoration: InputDecoration(labelText: label, counterText: ''),
-        validator: (v) {
-          if (!required && (v == null || v.isEmpty)) return null;
-          if (v == null || v.length != max) return 'Deve conter $max dígitos';
-          return null;
-        },
+        decoration: InputDecoration(
+          labelText: label,
+          counterText: '',
+        ),
+        validator: validator,
+      ),
+    );
+  }
+
+  Widget _ccField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: ccCtrl,
+        textCapitalization: TextCapitalization.characters,
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+          LengthLimitingTextInputFormatter(12),
+          UpperCaseTextFormatter(), // 🔥 força maiúsculo automático
+        ],
+        decoration: const InputDecoration(
+          labelText: 'Nº Cartão do Cidadão',
+          hintText: 'Ex: 12345678AB12',
+        ),
+        validator: _validateCC,
       ),
     );
   }
@@ -213,11 +291,15 @@ class _NifFormScreenState extends State<NifFormScreen> {
 
             return TextEditingValue(
               text: result,
-              selection: TextSelection.collapsed(offset: result.length),
+              selection:
+                  TextSelection.collapsed(offset: result.length),
             );
           }),
         ],
-        decoration: InputDecoration(labelText: label, hintText: 'DD/MM/AAAA'),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: 'DD/MM/AAAA',
+        ),
         validator: (v) =>
             v == null || _parseDate(v) == null ? 'Data inválida' : null,
       ),
@@ -240,6 +322,18 @@ class _NifFormScreenState extends State<NifFormScreen> {
         ],
         onChanged: (v) => setState(() => sexo = v),
       ),
+    );
+  }
+}
+
+// 🔥 FORMATADOR PERSONALIZADO PARA MAIÚSCULO AUTOMÁTICO
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }
