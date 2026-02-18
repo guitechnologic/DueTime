@@ -1,4 +1,4 @@
-package com.example.journey2europe
+package com.guilhermegoulart.duetime
 
 import io.flutter.embedding.android.FlutterActivity
 
